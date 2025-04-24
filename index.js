@@ -51,7 +51,7 @@ const express_1 = __importDefault(require("express"));
 const aws_sdk_1 = require("aws-sdk");
 const mime_types_1 = __importDefault(require("mime-types"));
 const S3_BUCKET = process.env.AWS_S3_BUCKET;
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 const s3 = new aws_sdk_1.S3({
     accessKeyId: process.env.AWS_ACCESS_KEYID,
     secretAccessKey: process.env.AWS_SECRETACCESSKEY,
@@ -67,17 +67,15 @@ app.get("/*", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (filePath.startsWith(`/${id}`)) {
         filePath = filePath.slice(id.length + 1); // +1 for the slash
     }
-    try {
-        const contents = yield s3.getObject({
-            Bucket: S3_BUCKET,
-            Key: `__outout/${id}${filePath}`
-        }).promise();
-        const type = mime_types_1.default.lookup(filePath) || "application/octet-stream";
-        res.set("Content-Type", type);
-        res.send(contents.Body);
-    }
-    catch (error) {
-        res.status(400).send("file Not found");
-    }
+    const contentsStream = yield s3.getObject({
+        Bucket: S3_BUCKET,
+        Key: `__outout/${id}${filePath}`
+    }).createReadStream();
+    const type = mime_types_1.default.lookup(filePath) || "application/octet-stream";
+    res.set("Content-Type", type);
+    contentsStream.pipe(res);
+    contentsStream.on("error", (err) => {
+        res.send("Failed to get file");
+    });
 }));
 app.listen(PORT);

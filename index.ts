@@ -28,19 +28,20 @@ app.get("/*", async (req, res) => {
       filePath = filePath.slice(id.length + 1); // +1 for the slash
     }
 
-  try {
-    const contents = await s3.getObject({
+    const contentsStream = await s3.getObject({
       Bucket: S3_BUCKET,
       Key: `__outout/${id}${filePath}`
-    }).promise();
+    }).createReadStream();
 
     const type = mime.lookup(filePath) || "application/octet-stream";
     res.set("Content-Type", type);
-  
-    res.send(contents.Body);
-  } catch (error) {
-    res.status(400).send("file Not found")
-  }
+
+    contentsStream.pipe(res);
+    
+    contentsStream.on("error", (err)=>{
+      res.send("Failed to get file")
+    })
+
 })
 
 app.listen(PORT);
